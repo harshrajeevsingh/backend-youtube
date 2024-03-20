@@ -52,7 +52,7 @@ const userSchema = new Schema(
 // It's a middleware in mongoose( a type of hook)
 // We are ensuring to hash the password using bcrypt just before saving it to the DB.
 userSchema.pre("save", async function (next) {
-  if (!this.modified("password")) return next(); // This is to check if password is being modified then only hash it, otherwise even if we update any other field, the hashing function will be called.
+  if (!this.isModified("password")) return next(); // This is to check if password is being modified then only hash it, otherwise even if we update any other field, the hashing function will be called.
 
   this.password = await bcrypt.hash(this.password, 10);
   next();
