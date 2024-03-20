@@ -54,7 +54,7 @@ const userSchema = new Schema(
 userSchema.pre("save", async function (next) {
   if (!this.modified("password")) return next(); // This is to check if password is being modified then only hash it, otherwise even if we update any other field, the hashing function will be called.
 
-  this.password = bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
