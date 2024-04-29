@@ -1,4 +1,5 @@
 // This is a wrapper we made to handle async functions wherever we needed.
+// This will help in reducing rewritting of code.
 
 // Method 1: With Promise method
 
@@ -22,3 +23,8 @@ export { asyncHandler };
 //         })
 //     }
 // }
+
+// How the above syntax is written:
+// const asyncHandler = () => {}
+// const asyncHandler = (func) => {() => {}}  or const asyncHandler = (func) => () => {}
+// const asyncHandler = (func) => async () => {}
