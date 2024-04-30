@@ -223,16 +223,171 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       .cookie("acccessToken", accessToken, options)
       .cookie("refreshToken", newRefreshToken, options)
       .json(
-        200,
-        { accessToken, refreshToken: newRefreshToken },
-        "Access Token Refreshed"
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access Token Refreshed"
+        )
       );
   } catch (error) {
     throw new ApiError(401, error?.message || "Invalid Refresh Token");
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.user?._id);
+
+  const isPaswordCorrect = await user.isPaswordCorrect(oldPassword);
+
+  if (!isPaswordCorrect) {
+    throw new ApiError(401, "Old Password is Incorrect");
+  }
+
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"));
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current User Fetched successfully"));
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+
+  if (!fullName || !email) {
+    throw new ApiError(401, "All fields are required");
+  }
+
+  const user = User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: { fullName: fullName, email: email } },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account Details updated successfully"));
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is missing");
+  }
+
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+  if (!avatar.url) {
+    throw new ApiError(400, "Error uploading avatar on Cloudinary");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: { avatar: avatar.url } },
+    { new: true }
+  );
+
+  // TODO: Delete previous Image from cloudinary
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User's Avatar updated successfully"));
+});
+
+const updateUserCoverImg = asyncHandler(async (req, res) => {
+  const coverImgLocalPath = req.file?.path;
+
+  if (!coverImgLocalPath) {
+    throw new ApiError(400, "Avatar file is missing");
+  }
+
+  const coverImg = await uploadOnCloudinary(coverImgLocalPath);
+
+  if (!coverImg.url) {
+    throw new ApiError(400, "Error uploading Cover Image on Cloudinary");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { $set: { coverImg: coverImg.url } },
+    { new: true }
+  );
+
+  // TODO: Delete previous Image from cloudinary
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User's Cover Img updated successfully"));
+});
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username) {
+    throw new ApiError(400, "Username is missing");
+  }
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        isSubscribed: {
+          $cond: {
+            $if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+  ]);
+});
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateAccountDetails,
+  updateUserAvatar,
+  updateUserCoverImg,
+  getUserChannelProfile,
+};
 
 // if data is coming from form or json, we can get it from body of the request
 // If it's coming from url, it is handled in diff way.
