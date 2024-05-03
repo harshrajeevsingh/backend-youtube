@@ -347,8 +347,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     },
     {
       $lookup: {
-        from: "subscriptions",
-        localField: "_id",
+        from: "subscriptions", // In model, the name is Subscription
+        localField: "_id", // But we know that internally, it is saved as subscriptions.
         foreignField: "channel",
         as: "subscribers",
       },
