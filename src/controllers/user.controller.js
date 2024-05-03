@@ -163,8 +163,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1, // this removes the field from document
       },
     },
     {
@@ -266,15 +266,19 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     throw new ApiError(401, "All fields are required");
   }
 
-  const user = User.findByIdAndUpdate(
-    req.user?._id,
-    { $set: { fullName: fullName, email: email } },
-    { new: true }
-  ).select("-password -refreshToken");
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      { $set: { fullName: fullName, email: email } },
+      { new: true }
+    ).select("-password -refreshToken");
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, "Account Details updated successfully"));
+    return res
+      .status(200)
+      .json(new ApiResponse(200, user, "Account Details updated successfully"));
+  } catch (error) {
+    throw new ApiError(401, "Failed to update the account details");
+  }
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
