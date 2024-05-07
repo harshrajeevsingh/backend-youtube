@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.models.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import Jwt from "jsonwebtoken";
 
@@ -52,6 +52,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
+  console.log(avatarLocalPath);
   //   const coverImgLocalPath = req.files?.coverImg[0]?.path;
 
   let coverImgLocalPath;
@@ -101,10 +102,10 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   // req body -> data
   // username or email
-  // find the user
-  // password check
-  // access & refresh token
-  // send cookie
+  //find the user
+  //password check
+  //access and referesh token
+  //send cookie
 
   const { email, username, password } = req.body;
 
@@ -117,13 +118,13 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new ApiError(404, "user does not exist");
+    throw new ApiError(404, "User does not exist");
   }
 
-  const isPasswordValid = await user.isPaswordCorrect(password);
+  const isPasswordValid = await user.isPasswordCorrect(password);
 
   if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid user Credentials");
+    throw new ApiError(401, "Invalid user credentials");
   }
 
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
@@ -137,7 +138,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
-  }; // This is cookie option. This config makes sure that cookie can be modified only from server and not frontend.
+  };
 
   return res
     .status(200)
@@ -151,7 +152,7 @@ const loginUser = asyncHandler(async (req, res) => {
           accessToken,
           refreshToken,
         },
-        "User logged In successfully"
+        "User logged In Successfully"
       )
     );
 });
@@ -239,7 +240,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
   const user = await User.findById(req.user?._id);
 
-  const isPaswordCorrect = await user.isPaswordCorrect(oldPassword);
+  const isPaswordCorrect = await user.isPasswordCorrect(oldPassword);
 
   if (!isPaswordCorrect) {
     throw new ApiError(401, "Old Password is Incorrect");
@@ -271,7 +272,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
       req.user?._id,
       { $set: { fullName: fullName, email: email } },
       { new: true }
-    ).select("-password -refreshToken");
+    ).select("-password");
 
     return res
       .status(200)
@@ -294,13 +295,22 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Error uploading avatar on Cloudinary");
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: { avatar: avatar.url } },
-    { new: true }
-  );
+  const user = await User.findById(req.user._id).select("avatar");
 
-  // TODO: Delete previous Image from cloudinary
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const previousAvatarUrl = user.avatar;
+  const publicId = previousAvatarUrl.match(/\/([^\/]+)\.[^\/]+$/)[1];
+
+  user.avatar = avatar.url;
+  await user.save();
+
+  if (previousAvatarUrl) {
+    await deleteOnCloudinary(publicId);
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, user, "User's Avatar updated successfully"));
@@ -316,20 +326,28 @@ const updateUserCoverImg = asyncHandler(async (req, res) => {
   const coverImg = await uploadOnCloudinary(coverImgLocalPath);
 
   if (!coverImg.url) {
-    throw new ApiError(400, "Error uploading Cover Image on Cloudinary");
+    throw new ApiError(400, "Error uploading avatar on Cloudinary");
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: { coverImg: coverImg.url } },
-    { new: true }
-  );
+  const user = await User.findById(req.user._id).select("coverImg");
 
-  // TODO: Delete previous Image from cloudinary
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const previousCoverUrl = user.coverImg;
+  const publicId = previousCoverUrl.match(/\/([^\/]+)\.[^\/]+$/)[1];
+
+  user.coverImg = coverImg.url;
+  await user.save();
+
+  if (previousCoverUrl) {
+    await deleteOnCloudinary(publicId);
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "User's Cover Img updated successfully"));
+    .json(new ApiResponse(200, user, "User's coverImg updated successfully"));
 });
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {

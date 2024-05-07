@@ -60,7 +60,7 @@ userSchema.pre("save", async function (next) {
 
 // We can create any method in mongoose.
 // Here we created a method to compare the text-password with hashed-password
-userSchema.methods.isPaswordCorrect = async function (password) {
+userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
