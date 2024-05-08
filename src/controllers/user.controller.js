@@ -77,8 +77,14 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const user = await User.create({
     fullName,
-    avatar: avatar.url,
-    coverImg: coverImg?.url || "",
+    avatar: {
+      public_id: avatar.public_id,
+      url: avatar.secure_url,
+    },
+    coverImg: {
+      public_id: coverImg?.public_id || "",
+      url: coverImg?.secure_url || "",
+    },
     email,
     password,
     username: username.toLowerCase(),
@@ -301,14 +307,17 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  const previousAvatarUrl = user.avatar;
-  const publicId = previousAvatarUrl.match(/\/([^\/]+)\.[^\/]+$/)[1];
+  const previousAvatarPublicId = user.avatar.public_id;
 
-  user.avatar = avatar.url;
+  user.avatar = {
+    public_id: avatar.public_id,
+    url: avatar.secure_url,
+  };
+
   await user.save();
 
-  if (previousAvatarUrl) {
-    await deleteOnCloudinary(publicId);
+  if (previousAvatarPublicId) {
+    await deleteOnCloudinary(previousAvatarPublicId);
   }
 
   return res
@@ -335,14 +344,16 @@ const updateUserCoverImg = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  const previousCoverUrl = user.coverImg;
-  const publicId = previousCoverUrl.match(/\/([^\/]+)\.[^\/]+$/)[1];
+  const previousCoverPublicId = user.coverImg.public_id;
 
-  user.coverImg = coverImg.url;
+  user.coverImg = {
+    public_id: coverImg.public_id,
+    url: coverImg.secure_url,
+  };
   await user.save();
 
-  if (previousCoverUrl) {
-    await deleteOnCloudinary(publicId);
+  if (previousCoverPublicId) {
+    await deleteOnCloudinary(previousCoverPublicId);
   }
 
   return res
@@ -389,7 +400,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         },
         isSubscribed: {
           $cond: {
-            $if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
             then: true,
             else: false,
           },
