@@ -26,11 +26,17 @@ const userSchema = new Schema(
       index: true,
     },
     avatar: {
-      type: String, // Cloudinary id
+      type: {
+        public_id: String,
+        url: String, //cloudinary url
+      },
       required: true,
     },
     coverImg: {
-      type: String,
+      type: {
+        public_id: String,
+        url: String, //cloudinary url
+      },
     },
     watchHistory: [
       {
@@ -60,7 +66,7 @@ userSchema.pre("save", async function (next) {
 
 // We can create any method in mongoose.
 // Here we created a method to compare the text-password with hashed-password
-userSchema.methods.isPaswordCorrect = async function (password) {
+userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
