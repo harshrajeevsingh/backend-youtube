@@ -277,7 +277,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user?._id,
       { $set: { fullName: fullName, email: email } },
-      { new: true } // it instructs Mongoose to return the updated document instead of the original document before the update.
+      { new: true } //it instructs Mongoose to return the updated document instead of the original document before the update.
     ).select("-password");
 
     return res
