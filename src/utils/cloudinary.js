@@ -19,7 +19,9 @@ const uploadOnCloudinary = async (localFilePath) => {
         throw new Error("Local file path is missing");
       }
 
-      response = await cloudinary.uploader.upload(localFilePath);
+      response = await cloudinary.uploader.upload(localFilePath, {
+        resource_type: "auto",
+      });
       console.log("File uploaded successfully", response.url);
       fs.unlinkSync(localFilePath);
       break; // Exit the loop if upload is successful
