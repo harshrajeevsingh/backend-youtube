@@ -288,11 +288,55 @@ const deleteVideo = asyncHandler(async (req, res) => {
   await deleteOnCloudinary(video.thumbnail.public_id);
   await deleteOnCloudinary(video.videoFile.public_id, "video");
 
-  await Like.deleteMany();
+  await Like.deleteMany({
+    video: videoId,
+  });
+
+  await Comment.deleteMany({
+    video: videoId,
+  });
+
+  return res.status(200).json(new ApiResponse(200, "Video is deleted"));
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid videoId");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(401, "Only owner can delete the video");
+  }
+
+  const toggledVideoPublish = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      $set: {
+        isPublished: !video.isPublished,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  if (!toggledVideoPublish) {
+    throw new ApiError(400, "Failed to change publish status");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { videoPublishStatus: toggledVideoPublish.isPublished },
+        "Video's Piblish status toggled successfully"
+      )
+    );
 });
 
 export {
