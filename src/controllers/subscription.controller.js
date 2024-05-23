@@ -1,19 +1,18 @@
 import mongoose, { isValidObjectId } from "mongoose";
-import { User } from "../models/user.models.js";
-import { Subscription } from "../models/subscription.models.js";
-import { ApiError } from "../utils/apiError.js";
-import { ApiResponse } from "../utils/apiResponse.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import asyncHandler from "../utils/asyncHandler.js";
+import ApiError from "../utils/apiError.js";
+import ApiResponse from "../utils/apiResponse.js";
+import { Subscription } from "../models/subscription.model.js";
 
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
 
   if (!isValidObjectId(channelId)) {
-    throw new ApiError(400, "Channel Id is invalid");
+    throw new ApiError(400, "Invalid channelId");
   }
 
   const isSubscribed = await Subscription.findOne({
-    subsriber: req.user?._id,
+    subscriber: req.user?._id,
     channel: channelId,
   });
 
@@ -23,23 +22,19 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(200, { subscribed: false }, "successfully unsubscribed")
+        new ApiResponse(200, { subscribed: false }, "unsunscribed successfully")
       );
   }
 
   await Subscription.create({
-    subsriber: req.user?._id,
+    subscriber: req.user?._id,
     channel: channelId,
   });
 
   return res
     .status(200)
     .json(
-      new ApiResponse(
-        200,
-        { subscribed: true },
-        "Channel Subscribed Successfully"
-      )
+      new ApiResponse(200, { subscribed: true }, "subscribed successfully")
     );
 });
 
