@@ -1,22 +1,39 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import morgan from "morgan";
 
 const app = express();
 
-// setting CORS policy
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true,
-  })
-);
+// app.use(
+//   cors({
+//     origin: process.env.CORS_ORIGIN,
+//     credentials: true,
+//   })
+// );
+
+const corsOptions = {
+  origin: "http://localhost:5174",
+  credentials: true,
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // middlewares
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
+app.use((req, res, next) => {
+  console.log(`Received ${req.method} request for ${req.url}`);
+  console.log("Request headers:", req.headers);
+  next();
+});
+app.use(morgan("dev"));
 
 // route imports
 import userRouter from "./routes/user.routes.js";
