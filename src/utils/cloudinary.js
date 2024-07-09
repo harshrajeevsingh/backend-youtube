@@ -38,7 +38,9 @@ const uploadOnCloudinary = async (localFilePath) => {
 
   if (retryCount === MAX_RETRIES) {
     console.error("Max retries exceeded. Upload failed.");
-    fs.unlinkSync(localFilePath); // Delete the file after max retries are reached
+    if (localFilePath) {
+      fs.unlinkSync(localFilePath); // Delete the file after max retries are reached
+    }
     return null;
   }
 
