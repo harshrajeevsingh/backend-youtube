@@ -12,10 +12,13 @@ const generateAccessAndRefreshTokens = async (userId) => {
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken; // storing refeshToken in DB
-    user.save({ validateBeforeSave: false }); // saving the DB & validateBeforeSave: false makes it so we don't want fields like pass. to be checked
+    await user.save({ validateBeforeSave: false }); // saving the DB & validateBeforeSave: false makes it so we don't want fields like pass. to be checked
+
+    console.log("Generated tokens:", { accessToken, refreshToken });
 
     return { accessToken, refreshToken };
   } catch (error) {
+    console.error("Error in generateAccessAndRefreshTokens:", error);
     throw new ApiError(
       500,
       "Something went wrong while generating refresh and access token"
@@ -182,6 +185,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
+    sameSite: "None",
   };
 
   return res
@@ -193,7 +197,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+    req.cookies?.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized request");
@@ -216,27 +220,32 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 
     // if matched
-    const { accessToken, newRefreshToken } = generateAccessAndRefreshTokens(
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
       user._id
     );
 
+    if (!refreshToken) {
+      throw new ApiError(500, "Failed to generate refresh token");
+    }
     const options = {
       httpOnly: true,
       secure: true,
+      sameSite: "None",
     };
 
     return res
       .status(200)
-      .cookie("acccessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { accessToken, refreshToken: newRefreshToken },
+          { accessToken, refreshToken },
           "Access Token Refreshed"
         )
       );
   } catch (error) {
+    console.error("Error in refreshAccessToken:", error);
     throw new ApiError(401, error?.message || "Invalid Refresh Token");
   }
 });
