@@ -11,7 +11,7 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     throw new ApiError(400, "invalid videoId");
   }
 
-  const likedAlready = Like.findOne({
+  const likedAlready = await Like.findOne({
     video: videoId,
     likedBy: req.user?._id,
   });

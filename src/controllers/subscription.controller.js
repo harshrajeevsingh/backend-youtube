@@ -4,8 +4,43 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { Subscription } from "../models/subscription.models.js";
 
+// const toggleSubscription = asyncHandler(async (req, res) => {
+//   const { channelId } = req.params;
+
+//   if (!isValidObjectId(channelId)) {
+//     throw new ApiError(400, "Invalid channelId");
+//   }
+
+//   const isSubscribed = await Subscription.findOne({
+//     subscriber: req.user?._id,
+//     channel: channelId,
+//   });
+
+//   if (isSubscribed) {
+//     await Subscription.findByIdAndDelete(isSubscribed?._id);
+
+//     return res
+//       .status(200)
+//       .json(
+//         new ApiResponse(200, { subscribed: false }, "unsunscribed successfully")
+//       );
+//   }
+
+//   await Subscription.create({
+//     subscriber: req.user?._id,
+//     channel: channelId,
+//   });
+
+//   return res
+//     .status(200)
+//     .json(
+//       new ApiResponse(200, { subscribed: true }, "subscribed successfully")
+//     );
+// });
+
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
+  // TODO: toggle subscription
 
   if (!isValidObjectId(channelId)) {
     throw new ApiError(400, "Invalid channelId");
