@@ -1,3 +1,4 @@
+import mongoose, { isValidObjectId } from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.models.js";
@@ -369,7 +370,7 @@ const updateUserCoverImg = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, user, "User's coverImg updated successfully"));
 });
-
+/*
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
 
@@ -425,6 +426,84 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         isSubscribed: 1,
         avatar: 1,
         coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  if (!channel?.length) {
+    throw new ApiError(400, "channel does not exist");
+  }
+
+  console.log(channel);
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "User channel is fetched successfully")
+    );
+});
+*/
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username) {
+    throw new ApiError(400, "Username is missing");
+  }
+  const userId = req.user ? new mongoose.Types.ObjectId(req.user._id) : null;
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions", // In model, the name is Subscription
+        localField: "_id", // But we know that internally, it is saved as subscriptions.
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        isSubscribed: {
+          $cond: {
+            if: {
+              $and: [
+                { $ne: [userId, null] },
+                { $in: [userId, "$subscribers.subscriber"] },
+              ],
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImg: 1,
         email: 1,
       },
     },

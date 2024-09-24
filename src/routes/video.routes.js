@@ -18,7 +18,6 @@ const optionalVerifyJWT = (req, res, next) => {
   const token =
     req.cookies?.accessToken ||
     req.header("Authorization")?.replace("Bearer ", "");
-  console.log("Token", token);
   if (token) {
     try {
       const decodedToken = Jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
