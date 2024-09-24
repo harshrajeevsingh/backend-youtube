@@ -1,3 +1,4 @@
+import mongoose, { isValidObjectId } from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.models.js";
@@ -12,10 +13,13 @@ const generateAccessAndRefreshTokens = async (userId) => {
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken; // storing refeshToken in DB
-    user.save({ validateBeforeSave: false }); // saving the DB & validateBeforeSave: false makes it so we don't want fields like pass. to be checked
+    await user.save({ validateBeforeSave: false }); // saving the DB & validateBeforeSave: false makes it so we don't want fields like pass. to be checked
+
+    console.log("Generated tokens:", { accessToken, refreshToken });
 
     return { accessToken, refreshToken };
   } catch (error) {
+    console.error("Error in generateAccessAndRefreshTokens:", error);
     throw new ApiError(
       500,
       "Something went wrong while generating refresh and access token"
@@ -182,6 +186,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
+    sameSite: "None",
   };
 
   return res
@@ -193,7 +198,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+    req.cookies?.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized request");
@@ -216,27 +221,32 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 
     // if matched
-    const { accessToken, newRefreshToken } = generateAccessAndRefreshTokens(
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
       user._id
     );
 
+    if (!refreshToken) {
+      throw new ApiError(500, "Failed to generate refresh token");
+    }
     const options = {
       httpOnly: true,
       secure: true,
+      sameSite: "None",
     };
 
     return res
       .status(200)
-      .cookie("acccessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { accessToken, refreshToken: newRefreshToken },
+          { accessToken, refreshToken },
           "Access Token Refreshed"
         )
       );
   } catch (error) {
+    console.error("Error in refreshAccessToken:", error);
     throw new ApiError(401, error?.message || "Invalid Refresh Token");
   }
 });
@@ -360,7 +370,7 @@ const updateUserCoverImg = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, user, "User's coverImg updated successfully"));
 });
-
+/*
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
 
@@ -416,6 +426,84 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         isSubscribed: 1,
         avatar: 1,
         coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  if (!channel?.length) {
+    throw new ApiError(400, "channel does not exist");
+  }
+
+  console.log(channel);
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "User channel is fetched successfully")
+    );
+});
+*/
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username) {
+    throw new ApiError(400, "Username is missing");
+  }
+  const userId = req.user ? new mongoose.Types.ObjectId(req.user._id) : null;
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions", // In model, the name is Subscription
+        localField: "_id", // But we know that internally, it is saved as subscriptions.
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        isSubscribed: {
+          $cond: {
+            if: {
+              $and: [
+                { $ne: [userId, null] },
+                { $in: [userId, "$subscribers.subscriber"] },
+              ],
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImg: 1,
         email: 1,
       },
     },

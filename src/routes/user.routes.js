@@ -1,4 +1,5 @@
 import { Router } from "express";
+import Jwt from "jsonwebtoken";
 import {
   changeCurrentPassword,
   getCurrentUser,
@@ -16,6 +17,23 @@ import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
+
+// Custom middleware to optionally verify JWT
+const optionalVerifyJWT = (req, res, next) => {
+  const token =
+    req.cookies?.accessToken ||
+    req.header("Authorization")?.replace("Bearer ", "");
+  console.log("Token", token);
+  if (token) {
+    try {
+      const decodedToken = Jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      req.user = decodedToken;
+    } catch (error) {
+      // Token is invalid, but we'll continue without setting req.user
+    }
+  }
+  next();
+};
 
 router.route("/register").post(
   upload.fields([
@@ -39,7 +57,8 @@ router
 router
   .route("/update-coverImg")
   .patch(verifyJWT, upload.single("coverImg"), updateUserCoverImg);
-router.route("/c/:username").get(verifyJWT, getUserChannelProfile);
+// router.route("/c/:username").get(verifyJWT, getUserChannelProfile);
+router.route("/c/:username").get(optionalVerifyJWT, getUserChannelProfile);
 router.route("/history").get(verifyJWT, getWatchHistory);
 
 export default router;

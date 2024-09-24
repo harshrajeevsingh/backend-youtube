@@ -1,4 +1,5 @@
 import { Router } from "express";
+import Jwt from "jsonwebtoken";
 import {
   deleteVideo,
   getAllVideos,
@@ -11,7 +12,22 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
-// router.use(verifyJWT); // Apply verifyJWT middleware to all routes in this file
+
+// Custom middleware to optionally verify JWT
+const optionalVerifyJWT = (req, res, next) => {
+  const token =
+    req.cookies?.accessToken ||
+    req.header("Authorization")?.replace("Bearer ", "");
+  if (token) {
+    try {
+      const decodedToken = Jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      req.user = decodedToken;
+    } catch (error) {
+      // Token is invalid, but we'll continue without setting req.user
+    }
+  }
+  next();
+};
 
 router
   .route("/")
@@ -33,13 +49,10 @@ router
 
 router
   .route("/:videoId")
-  .get(getVideoById)
+  .get(optionalVerifyJWT, getVideoById)
   .delete(verifyJWT, deleteVideo)
   .patch(verifyJWT, upload.single("thumbnail"), updateVideo);
 
 router.route("/toggle/publish/:videoId").patch(verifyJWT, togglePublishStatus);
 
 export default router;
-
-//haven't used verifyJWT to getAllVideos & getVideoById, so that user without
-// sign up can see all videos.
